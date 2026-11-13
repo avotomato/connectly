@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block body %}
+
+{% include 'navbar.html' %}
+
+<div class="profile-page-wrapper">
+  <div class="data-section" style="max-width:600px; margin:2rem auto;">
+    <h2>🔔 Notifications</h2>
+
+    {% if enriched %}
+      {% for item in enriched %}
+      {% set n = item.n %}
+      {% set actor = item.actor %}
+      {% set post = item.post %}
+      <div class="notif-item {% if not n.read %}notif-unread{% endif %}">
+        <span class="notif-avatar">{{ actor.avatar_emoji if actor else '🔔' }}</span>
+        <div class="notif-body">
+          {% if n.ntype == 'like' %}
+            <strong>{% if actor %}<a href="/u/{{ actor.username }}">@{{ actor.username }}</a>{% else %}Someone{% endif %}</strong>
+            liked your post
+            {% if post %}<span class="notif-post-preview">"{{ post.text[:50] }}…"</span>{% endif %}
+          {% elif n.ntype == 'comment' %}
+            <strong>{% if actor %}<a href="/u/{{ actor.username }}">@{{ actor.username }}</a>{% else %}Someone{% endif %}</strong>
+            commented on your post
+            {% if post %}<span class="notif-post-preview">"{{ post.text[:50] }}…"</span>{% endif %}
+          {% elif n.ntype == 'follow' %}
+            <strong>{% if actor %}<a href="/u/{{ actor.username }}">@{{ actor.username }}</a>{% else %}Someone{% endif %}</strong>
+            started following you
+          {% endif %}
+          <span class="notif-time">{{ n.created_at.strftime('%d %b, %H:%M') }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty-note">No notifications yet. Start interacting!</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

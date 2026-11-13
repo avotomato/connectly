@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block body %}
+
+{% include 'navbar.html' %}
+
+<div class="profile-page-wrapper">
+
+  <!-- Profile header -->
+  <div class="profile-header-card">
+    <div class="profile-banner"></div>
+    <div class="profile-info">
+      <div class="profile-big-avatar">{{ target.avatar_emoji }}</div>
+      <div class="profile-details">
+        <h1 class="profile-username">@{{ target.username }}</h1>
+        {% if target.full_name %}
+          <p class="profile-fullname">{{ target.full_name }}</p>
+        {% endif %}
+        {% if target.bio %}
+          <p class="profile-bio">{{ target.bio }}</p>
+        {% endif %}
+        <p class="profile-joined">Joined {{ target.created_at.strftime('%B %Y') }}</p>
+        <div class="profile-stats">
+          <span><strong>{{ posts|length }}</strong> Posts</span>
+          <span><strong>{{ followers }}</strong> Followers</span>
+          <span><strong>{{ following_count }}</strong> Following</span>
+        </div>
+      </div>
+      <div class="profile-actions">
+        {% if target.id == me.id %}
+          <a href="/u/{{ me.username }}/edit" class="btn-edit-profile">Edit Profile</a>
+        {% else %}
+          <button class="btn-follow {% if is_following %}following{% endif %}"
+                  id="follow-btn-{{ target.id }}"
+                  onclick="toggleFollow({{ target.id }}, this)">
+            {% if is_following %}Following{% else %}Follow{% endif %}
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Posts grid -->
+  <div class="profile-posts">
+    <h2>Posts</h2>
+    {% if posts %}
+      {% for post in posts %}
+      {% set like_count = post.likes.count() %}
+      {% set is_liked = post.id in liked_ids %}
+      <article class="post-card" id="post-{{ post.id }}" data-post-id="{{ post.id }}" data-topic="{{ post.topic }}">
+        <div class="post-header">
+          <span class="post-avatar">{{ target.avatar_emoji }}</span>
+          <div class="post-meta">
+            <span class="post-author">@{{ target.username }}</span>
+          </div>
+          <span class="post-topic-badge">{{ topic_emojis.get(post.topic, '💬') }} {{ post.topic }}</span>
+          <span class="post-time">{{ post.created_at.strftime('%d %b, %H:%M') }}</span>
+        </div>
+        <p class="post-text">{{ post.text }}</p>
+        <div class="post-actions">
+          <button class="btn-like {% if is_liked %}liked{% endif %}"
+                  data-post-id="{{ post.id }}"
+                  onclick="toggleLike({{ post.id }}, this)">
+            <span class="like-icon">{% if is_liked %}❤️{% else %}🤍{% endif %}</span>
+            <span class="like-count">{{ like_count }}</span>
+          </button>
+          <button class="btn-comment-toggle" onclick="toggleComments({{ post.id }})">
+            💬 <span>{{ post.comments.count() }}</span>
+          </button>
+        </div>
+
+        <div class="comments-section" id="comments-{{ post.id }}" style="display:none;">
+          {% set comments = post.comments.order_by('created_at').all() %}
+          {% if comments %}
+          <div class="comments-list">
+            {% for c in comments %}
+            <div class="comment">
+              <a href="/u/{{ c.author_user.username }}" class="comment-avatar">{{ c.author_user.avatar_emoji }}</a>
+              <div class="comment-body">
+                <a href="/u/{{ c.author_user.username }}" class="comment-author">@{{ c.author_user.username }}</a>
+                <span class="comment-text">{{ c.text }}</span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <form method="POST" action="/post/{{ post.id }}/comment" class="comment-form">
+            <span class="comment-me-avatar">{{ me.avatar_emoji }}</span>
+            <input type="text" name="text" placeholder="Write a comment…" maxlength="300" required />
+            <button type="submit">Send</button>
+          </form>
+        </div>
+      </article>
+      {% endfor %}
+    {% else %}
+      <p class="empty-note" style="margin-top:1rem;">No posts yet.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleLike(postId, btn) {
+  fetch(`/post/${postId}/like`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok) return;
+      btn.querySelector('.like-icon').textContent = d.liked ? '❤️' : '🤍';
+      btn.querySelector('.like-count').textContent = d.count;
+      btn.classList.toggle('liked', d.liked);
+    });
+}
+function toggleComments(postId) {
+  const section = document.getElementById(`comments-${postId}`);
+  section.style.display = section.style.display === 'none' ? 'block' : 'none';
+}
+function toggleFollow(uid, btn) {
+  fetch(`/follow/${uid}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok) return;
+      btn.textContent = d.following ? 'Following' : 'Follow';
+      btn.classList.toggle('following', d.following);
+    });
+}
+</script>
+{% endblock %}

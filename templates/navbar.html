@@ -1,0 +1,22 @@
+{# Reusable navbar — include with {% include 'navbar.html' %} #}
+<nav class="navbar">
+  <div class="nav-brand">
+    <a href="/feed"><span class="brand-icon">🔗</span><span class="brand-name">Connectly</span></a>
+  </div>
+  <div class="nav-actions">
+    <a href="/mydata" class="btn-reveal">👁 See Your Profile</a>
+
+    <a href="/notifications" class="notif-btn" title="Notifications">
+      🔔
+      {% if notif_count and notif_count > 0 %}
+        <span class="notif-badge">{{ notif_count }}</span>
+      {% endif %}
+    </a>
+
+    <a href="/u/{{ me.username }}" class="nav-avatar" title="Your profile">
+      {{ me.avatar_emoji }}
+    </a>
+
+    <a href="/logout" class="nav-logout">Log out</a>
+  </div>
+</nav>

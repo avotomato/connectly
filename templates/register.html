@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="brand">
+      <span class="brand-icon">🔗</span>
+      <span class="brand-name">Connectly</span>
+    </div>
+    <p class="auth-tagline">Join millions of people sharing what matters.</p>
+
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+
+    <form method="POST" action="/register">
+
+      <!-- Avatar picker -->
+      <div class="form-group">
+        <label>Choose your avatar</label>
+        <div class="avatar-picker">
+          {% for a in avatars %}
+          <label class="avatar-option">
+            <input type="radio" name="avatar" value="{{ a }}" {% if loop.first %}checked{% endif %} />
+            <span class="avatar-emoji">{{ a }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" name="full_name" placeholder="Your real name" />
+      </div>
+      <div class="form-group">
+        <label>Username <span class="required">*</span></label>
+        <input type="text" name="username" placeholder="e.g. coolkid99" required />
+      </div>
+      <div class="form-group">
+        <label>Email Address <span class="required">*</span></label>
+        <input type="email" name="email" placeholder="your@email.com" required />
+      </div>
+      <div class="form-group">
+        <label>Age</label>
+        <input type="number" name="age" placeholder="Your age" min="10" max="99" />
+      </div>
+
+      <button type="submit" class="btn-primary">Create Account</button>
+    </form>
+
+    <p class="auth-switch">Already have an account? <a href="/login">Log in</a></p>
+    <p class="legal-text">
+      By signing up, you agree to our <a href="#">Terms of Service</a>,
+      <a href="#">Privacy Policy</a> and <a href="#">Cookie Policy</a>.
+    </p>
+  </div>
+</div>
+{% endblock %}

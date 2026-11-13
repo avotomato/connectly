@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block body %}
+
+{% include 'navbar.html' %}
+
+<div class="feed-layout">
+
+  <!-- Left sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-card">
+      <h3>Trending Topics</h3>
+      <ul class="topic-list">
+        {% for topic, emoji in topic_emojis.items() %}
+        <li data-topic="{{ topic }}">{{ emoji }} {{ topic }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="sidebar-card">
+      <h3>People you may know</h3>
+      {% if suggested %}
+        {% for u in suggested %}
+        <div class="friend-suggestion" id="suggest-{{ u.id }}">
+          <a href="/u/{{ u.username }}" class="friend-link">
+            <span class="avatar-small">{{ u.avatar_emoji }}</span>
+            <span class="friend-name">@{{ u.username }}</span>
+          </a>
+          <button class="btn-follow-small" data-uid="{{ u.id }}" onclick="toggleFollow({{ u.id }}, this)">
+            Follow
+          </button>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="empty-note">You're following everyone! 🎉</p>
+      {% endif %}
+    </div>
+  </aside>
+
+  <!-- Main Feed -->
+  <main class="feed">
+
+    <!-- Compose box -->
+    <div class="compose-card">
+      <div class="compose-header">
+        <span class="compose-avatar">{{ me.avatar_emoji }}</span>
+        <span class="compose-hint" id="compose-hint">What's on your mind, @{{ me.username }}?</span>
+      </div>
+      <form method="POST" action="/post/new" id="compose-form" style="display:none;">
+        <textarea name="text" id="compose-text" placeholder="What's on your mind?" maxlength="500" required></textarea>
+        <div class="compose-footer">
+          <select name="topic" class="topic-select">
+            {% for topic in topics %}
+            <option value="{{ topic }}">{{ topic_emojis[topic] }} {{ topic }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn-post">Post</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Posts -->
+    {% for post in posts %}
+    {% set like_count = post.likes.count() + (post.seed_likes or 0) %}
+    {% set comment_count = post.comments.count() %}
+    {% set is_liked = post.id in liked_ids %}
+    {% set display_name = post.author_user.username if post.author_user else post.seed_author %}
+    {% set display_avatar = post.author_user.avatar_emoji if post.author_user else post.seed_avatar %}
+
+    <article class="post-card" id="post-{{ post.id }}" data-post-id="{{ post.id }}" data-topic="{{ post.topic }}">
+      <div class="post-header">
+        {% if post.author_user %}
+          <a href="/u/{{ post.author_user.username }}" class="post-avatar-link">
+            <span class="post-avatar">{{ display_avatar }}</span>
+          </a>
+          <div class="post-meta">
+            <a href="/u/{{ post.author_user.username }}" class="post-author">@{{ display_name }}</a>
+            {% if post.author_user.full_name %}
+              <span class="post-fullname">{{ post.author_user.full_name }}</span>
+            {% endif %}
+          </div>
+        {% else %}
+          <span class="post-avatar">{{ display_avatar }}</span>
+          <div class="post-meta">
+            <span class="post-author">{{ display_name }}</span>
+          </div>
+        {% endif %}
+        <span class="post-topic-badge">{{ topic_emojis.get(post.topic, '💬') }} {{ post.topic }}</span>
+        <span class="post-time">{{ post.created_at.strftime('%d %b, %H:%M') }}</span>
+      </div>
+
+      <p class="post-text">{{ post.text }}</p>
+
+      <div class="post-actions">
+        <button class="btn-like {% if is_liked %}liked{% endif %}"
+                data-post-id="{{ post.id }}"
+                onclick="toggleLike({{ post.id }}, this)">
+          <span class="like-icon">{% if is_liked %}❤️{% else %}🤍{% endif %}</span>
+          <span class="like-count">{{ like_count }}</span>
+        </button>
+
+        <button class="btn-comment-toggle" onclick="toggleComments({{ post.id }})">
+          💬 <span>{{ comment_count }}</span>
+        </button>
+
+        <button class="btn-share" onclick="sharePost({{ post.id }})">
+          ↗ Share
+        </button>
+      </div>
+
+      <!-- Comment section -->
+      <div class="comments-section" id="comments-{{ post.id }}" style="display:none;">
+        {% set comments = post.comments.order_by('created_at').all() %}
+        {% if comments %}
+        <div class="comments-list">
+          {% for c in comments %}
+          <div class="comment">
+            <a href="/u/{{ c.author_user.username }}" class="comment-avatar">{{ c.author_user.avatar_emoji }}</a>
+            <div class="comment-body">
+              <a href="/u/{{ c.author_user.username }}" class="comment-author">@{{ c.author_user.username }}</a>
+              <span class="comment-text">{{ c.text }}</span>
+              <span class="comment-time">{{ c.created_at.strftime('%H:%M') }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/post/{{ post.id }}/comment" class="comment-form">
+          <span class="comment-me-avatar">{{ me.avatar_emoji }}</span>
+          <input type="text" name="text" placeholder="Write a comment…" maxlength="300" required />
+          <button type="submit">Send</button>
+        </form>
+      </div>
+
+    </article>
+    {% endfor %}
+  </main>
+
+  <!-- Right sidebar -->
+  <aside class="sidebar-right">
+    <div class="sidebar-card">
+      <h3>What's happening</h3>
+      <div class="news-item">#WorldCup2026 · 48.2K posts</div>
+      <div class="news-item">#NewMusicFriday · 23.1K posts</div>
+      <div class="news-item">#TechNews · 15.4K posts</div>
+      <div class="news-item">#GamingWeekend · 9.8K posts</div>
+    </div>
+  </aside>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/tracker.js') }}"></script>
+<script>
+// ── Compose box expand ────────────────────────────────
+document.getElementById('compose-hint').addEventListener('click', () => {
+  document.getElementById('compose-hint').style.display = 'none';
+  document.getElementById('compose-form').style.display = 'block';
+  document.getElementById('compose-text').focus();
+});
+
+// ── Like toggle ───────────────────────────────────────
+function toggleLike(postId, btn) {
+  fetch(`/post/${postId}/like`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok) return;
+      btn.querySelector('.like-icon').textContent = d.liked ? '❤️' : '🤍';
+      btn.querySelector('.like-count').textContent = d.count;
+      btn.classList.toggle('liked', d.liked);
+    });
+}
+
+// ── Comment toggle ────────────────────────────────────
+function toggleComments(postId) {
+  const section = document.getElementById(`comments-${postId}`);
+  const isOpen  = section.style.display !== 'none';
+  section.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) section.querySelector('input')?.focus();
+}
+
+// ── Follow toggle ─────────────────────────────────────
+function toggleFollow(uid, btn) {
+  fetch(`/follow/${uid}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok) return;
+      btn.textContent = d.following ? 'Unfollow' : 'Follow';
+      btn.classList.toggle('following', d.following);
+    });
+}
+
+// ── Share (copy link) ─────────────────────────────────
+function sharePost(postId) {
+  const url = `${location.origin}/feed#post-${postId}`;
+  navigator.clipboard?.writeText(url).then(() => alert('Link copied! 📋'));
+}
+
+// ── Auto-open comments if URL has anchor ─────────────
+const hash = window.location.hash;
+if (hash.startsWith('#post-')) {
+  const id = hash.replace('#post-', '');
+  const el = document.getElementById(`comments-${id}`);
+  if (el) el.style.display = 'block';
+}
+</script>
+{% endblock %}

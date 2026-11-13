@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block body %}
+
+{% include 'navbar.html' %}
+
+<div class="profile-page-wrapper">
+  <div class="data-section" style="max-width:520px; margin:2rem auto;">
+    <h2>Edit Profile</h2>
+    <form method="POST">
+      <div class="form-group" style="margin-top:1rem;">
+        <label>Choose your avatar</label>
+        <div class="avatar-picker">
+          {% for a in avatars %}
+          <label class="avatar-option">
+            <input type="radio" name="avatar" value="{{ a }}"
+                   {% if me.avatar_emoji == a %}checked{% endif %} />
+            <span class="avatar-emoji">{{ a }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" name="full_name" value="{{ me.full_name or '' }}" placeholder="Your name" />
+      </div>
+      <div class="form-group">
+        <label>Bio <small>(max 300 chars)</small></label>
+        <textarea name="bio" maxlength="300" rows="3"
+                  placeholder="Tell people about yourself…">{{ me.bio or '' }}</textarea>
+      </div>
+      <button type="submit" class="btn-primary">Save Changes</button>
+      <a href="/u/{{ me.username }}" class="btn-cancel">Cancel</a>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block body %}
+
+{% include 'navbar.html' %}
+
+<div class="profile-wrapper">
+
+  <div class="reveal-header">
+    <div class="reveal-icon">🕵️</div>
+    <h1>Here's what Connectly knows about you</h1>
+    <p class="reveal-sub">You've been on the platform for a few minutes — here's the profile we already built.</p>
+  </div>
+
+  <!-- Basic Info -->
+  <section class="data-section">
+    <h2>📋 Personal Information</h2>
+    <div class="data-grid">
+      <div class="data-item">
+        <span class="data-label">Full Name</span>
+        <span class="data-value">{{ me.full_name or '—' }}</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">Username</span>
+        <span class="data-value">@{{ me.username }}</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">Email Address</span>
+        <span class="data-value">{{ me.email }}</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">Age</span>
+        <span class="data-value">{{ me.age or '—' }}</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">Account Created</span>
+        <span class="data-value">{{ me.created_at.strftime('%d %b %Y, %H:%M') }}</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">Bio</span>
+        <span class="data-value">{{ me.bio or '—' }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Social Graph -->
+  <section class="data-section">
+    <h2>👥 Your Social Graph</h2>
+    <p class="section-note">Who you follow and who follows you — this reveals your real-life social circle.</p>
+    <div class="social-graph-grid">
+      <div>
+        <h4>Followers ({{ followers_list|length }})</h4>
+        {% if followers_list %}
+          <div class="user-chip-list">
+            {% for u in followers_list %}
+            <a href="/u/{{ u.username }}" class="user-chip">{{ u.avatar_emoji }} @{{ u.username }}</a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty-note">No followers yet.</p>
+        {% endif %}
+      </div>
+      <div>
+        <h4>Following ({{ following_list|length }})</h4>
+        {% if following_list %}
+          <div class="user-chip-list">
+            {% for u in following_list %}
+            <a href="/u/{{ u.username }}" class="user-chip">{{ u.avatar_emoji }} @{{ u.username }}</a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty-note">Not following anyone yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <!-- Device Fingerprint -->
+  <section class="data-section">
+    <h2>🖥️ Device &amp; Browser Fingerprint</h2>
+    <p class="section-note">Collected automatically — you never typed any of this.</p>
+    <div class="data-grid">
+      {% if fingerprint %}
+        {% for key, value in fingerprint.items() %}
+        <div class="data-item">
+          <span class="data-label">{{ key | replace('_', ' ') | title }}</span>
+          <span class="data-value">{{ value }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="empty-note">No fingerprint data yet.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- Interest Profile -->
+  <section class="data-section">
+    <h2>🎯 Your Interest Profile</h2>
+    <p class="section-note">Calculated from what you clicked, liked, commented on, and how long you looked at each post.</p>
+    {% if sorted_topics %}
+      <div class="interest-bars">
+        {% set max_score = sorted_topics[0][1] %}
+        {% for topic, score in sorted_topics %}
+        <div class="interest-row">
+          <span class="interest-label">{{ topic }}</span>
+          <div class="interest-bar-bg">
+            <div class="interest-bar-fill" style="width: {{ (score / max_score * 100) | int }}%"></div>
+          </div>
+          <span class="interest-score">{{ score }} pts</span>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-note">No interests detected yet — go like some posts!</p>
+    {% endif %}
+  </section>
+
+  <!-- Activity Log -->
+  <section class="data-section">
+    <h2>📊 Your Activity Log</h2>
+    <p class="section-note">{{ event_count }} events recorded. Every click, like, comment and scroll is logged with a timestamp.</p>
+    <div class="activity-table-wrapper">
+      <table class="activity-table">
+        <thead>
+          <tr><th>Time</th><th>Action</th><th>Target</th><th>Detail</th></tr>
+        </thead>
+        <tbody>
+          {% for e in events[-40:]|reverse %}
+          <tr>
+            <td>{{ e.ts.strftime('%H:%M:%S') }}</td>
+            <td><span class="event-badge event-{{ e.event_type }}">{{ e.event_type }}</span></td>
+            <td>{{ e.target }}</td>
+            <td>{{ e.value[:60] if e.value else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Liked posts -->
+  {% if liked_posts %}
+  <section class="data-section">
+    <h2>❤️ Posts You Liked</h2>
+    {% for p in liked_posts %}
+    <div class="mini-post">
+      <span>{{ p.author_user.avatar_emoji if p.author_user else p.seed_avatar }}</span>
+      <span>{{ p.text[:100] }}…</span>
+      <span class="topic-tag">{{ p.topic }}</span>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <!-- Summary -->
+  <section class="data-section reveal-summary">
+    <h2>🤔 What could Connectly do with this?</h2>
+    <ul class="summary-list">
+      <li>💰 Sell your interests to advertisers — you'd see targeted ads for <strong>{{ sorted_topics[0][0] if sorted_topics else 'your top topics' }}</strong></li>
+      <li>📧 Send marketing emails to <strong>{{ me.email }}</strong></li>
+      <li>🔗 Match your profile across other websites using your browser fingerprint</li>
+      <li>👥 Map your social circle from your followers &amp; following list</li>
+      <li>📍 Combine with location data to know where you are</li>
+      <li>🕐 Know exactly when you're online and for how long</li>
+      <li>🧠 Build a psychological profile to predict your behaviour</li>
+    </ul>
+    <p class="bottom-note">
+      This is a school demo — no real data leaves this classroom.
+      But real social networks do exactly this, every day.
+    </p>
+  </section>
+
+</div>
+{% endblock %}
