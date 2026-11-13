@@ -80,7 +80,7 @@
     <p class="section-note">Collected automatically — you never typed any of this.</p>
     <div class="data-grid">
       {% if fingerprint %}
-        {% for key, value in fingerprint.items() %}
+        {% for key, value in fingerprint.items() if key not in ('ip_addresses_seen',) %}
         <div class="data-item">
           <span class="data-label">{{ key | replace('_', ' ') | title }}</span>
           <span class="data-value">{{ value }}</span>
@@ -89,6 +89,68 @@
       {% else %}
         <p class="empty-note">No fingerprint data yet.</p>
       {% endif %}
+    </div>
+  </section>
+
+  <!-- IP Address -->
+  <section class="data-section ip-section">
+    <h2>🌍 IP Address &amp; Location</h2>
+    <p class="section-note">Your IP address is sent to every website you visit — automatically, without asking.</p>
+
+    <div class="data-grid" style="margin-bottom:1.25rem;">
+      {% if fingerprint.get('ip_address') %}
+        <div class="data-item">
+          <span class="data-label">IP Address</span>
+          <span class="data-value ip-highlight">{{ fingerprint.get('ip_address') }}</span>
+        </div>
+        {% if fingerprint.get('location_city') %}
+        <div class="data-item">
+          <span class="data-label">City</span>
+          <span class="data-value">{{ fingerprint.get('location_city') }}</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Region</span>
+          <span class="data-value">{{ fingerprint.get('location_region') }}</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Country</span>
+          <span class="data-value">{{ fingerprint.get('location_country') }}</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Internet Provider</span>
+          <span class="data-value">{{ fingerprint.get('location_isp') }}</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Organisation</span>
+          <span class="data-value">{{ fingerprint.get('location_org') }}</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Coordinates</span>
+          <span class="data-value">{{ fingerprint.get('location_lat_lon') }}</span>
+        </div>
+        {% endif %}
+        {% if fingerprint.get('ip_addresses_seen') and fingerprint.get('ip_addresses_seen')|length > 1 %}
+        <div class="data-item" style="grid-column: 1/-1;">
+          <span class="data-label">All IPs ever seen from your account</span>
+          <span class="data-value">{{ fingerprint.get('ip_addresses_seen') | join(', ') }}</span>
+        </div>
+        {% endif %}
+      {% else %}
+        <p class="empty-note">IP data not collected yet — try logging out and back in.</p>
+      {% endif %}
+    </div>
+
+    <div class="ip-explainer">
+      <h4>🤔 What can a website do with your IP address?</h4>
+      <ul class="ip-facts">
+        <li>📍 <strong>Approximate location</strong> — city, region and country, without GPS</li>
+        <li>🏠 <strong>Find your home</strong> — your home IP rarely changes; over time it can be linked to your address</li>
+        <li>🕐 <strong>Track you across websites</strong> — even without cookies, the same IP appearing on different sites links your activity</li>
+        <li>👤 <strong>Link family members</strong> — everyone at home shares the same IP, so your sibling's account can be connected to yours</li>
+        <li>🚫 <strong>Block or ban you</strong> — platforms can ban your IP, not just your account</li>
+        <li>📡 <strong>Identify your internet provider</strong> — which can be legally forced to reveal your name and address</li>
+      </ul>
+      <p class="ip-note">A VPN hides your real IP — but most school networks block VPNs. And the website still knows <em>someone</em> at that VPN server visited.</p>
     </div>
   </section>
 
@@ -160,6 +222,7 @@
       <li>🔗 Match your profile across other websites using your browser fingerprint</li>
       <li>👥 Map your social circle from your followers &amp; following list</li>
       <li>📍 Combine with location data to know where you are</li>
+      <li>🌍 Use your IP address to find your approximate home address</li>
       <li>🕐 Know exactly when you're online and for how long</li>
       <li>🧠 Build a psychological profile to predict your behaviour</li>
     </ul>

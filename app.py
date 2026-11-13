@@ -187,6 +187,7 @@ def register():
             db.session.commit()
             session['user_id']  = user.id
             session['username'] = user.username
+            collect_ip(user)
             return redirect(url_for('feed'))
 
     return render_template('register.html', error=error, avatars=AVATAR_OPTIONS)
@@ -200,6 +201,7 @@ def login():
         if user:
             session['user_id']  = user.id
             session['username'] = user.username
+            collect_ip(user)
             return redirect(url_for('feed'))
         else:
             error = "Account not found. Please register first."
@@ -528,6 +530,39 @@ def fingerprint_route():
         user.fingerprint = json.dumps(fp)
         db.session.commit()
     return jsonify({'ok': True})
+
+def collect_ip(user):
+    """Collect IP + basic geo info and store in fingerprint."""
+    # X-Forwarded-For is set by Railway's proxy
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    ip = forwarded.split(',')[0].strip() if forwarded else request.remote_addr
+
+    fp = json.loads(user.fingerprint) if user.fingerprint else {}
+
+    # Store raw IP and every IP seen across sessions
+    fp['ip_address'] = ip
+    seen = fp.get('ip_addresses_seen', [])
+    if ip not in seen:
+        seen.append(ip)
+    fp['ip_addresses_seen'] = seen
+
+    # Rough geo lookup via free ip-api.com (no key needed, 45 req/min)
+    try:
+        import urllib.request as urlreq
+        with urlreq.urlopen(f'http://ip-api.com/json/{ip}?fields=country,regionName,city,isp,org,lat,lon', timeout=3) as r:
+            geo = json.loads(r.read().decode())
+        if geo.get('city'):
+            fp['location_city']    = geo.get('city', '—')
+            fp['location_region']  = geo.get('regionName', '—')
+            fp['location_country'] = geo.get('country', '—')
+            fp['location_isp']     = geo.get('isp', '—')
+            fp['location_org']     = geo.get('org', '—')
+            fp['location_lat_lon'] = f"{geo.get('lat')}, {geo.get('lon')}"
+    except Exception:
+        pass  # geo lookup failed silently — IP is still stored
+
+    user.fingerprint = json.dumps(fp)
+    db.session.commit()
 
 @app.route('/notifications/count')
 def notif_count_api():
