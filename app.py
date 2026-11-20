@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import json
 import os
@@ -36,6 +37,7 @@ class User(db.Model):
     age         = db.Column(db.Integer)
     bio         = db.Column(db.String(300))
     avatar_emoji= db.Column(db.String(10), default='😊')
+    password_hash = db.Column(db.String(256))
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
     fingerprint = db.Column(db.Text, default='{}')
 
@@ -324,9 +326,17 @@ def register():
         full_name  = request.form.get('full_name', '').strip()
         age        = request.form.get('age', '').strip()
         avatar     = request.form.get('avatar', '😊')
+        password   = request.form.get('password', '')
+        password2  = request.form.get('password2', '')
 
         if not username or not email:
             error = "Username and email are required."
+        elif not password:
+            error = "Please choose a password."
+        elif len(password) < 6:
+            error = "Password must be at least 6 characters."
+        elif password != password2:
+            error = "Passwords don't match."
         elif User.query.filter_by(username=username).first():
             error = "Username already taken."
         elif User.query.filter_by(email=email).first():
@@ -334,7 +344,8 @@ def register():
         else:
             user = User(username=username, email=email, full_name=full_name,
                         age=int(age) if age.isdigit() else None,
-                        avatar_emoji=avatar if avatar in AVATAR_OPTIONS else '😊')
+                        avatar_emoji=avatar if avatar in AVATAR_OPTIONS else '😊',
+                        password_hash=generate_password_hash(password))
             db.session.add(user)
             db.session.commit()
             session['user_id']  = user.id
@@ -349,14 +360,21 @@ def login():
     error = None
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
         user = User.query.filter_by(username=username).first()
-        if user:
+        if not user:
+            error = "Account not found. Please register first."
+        elif not user.password_hash:
+            # legacy accounts without password — set one on next login not possible,
+            # just block and ask to re-register
+            error = "This account has no password set. Please create a new account."
+        elif not check_password_hash(user.password_hash, password):
+            error = "Wrong password. Please try again."
+        else:
             session['user_id']  = user.id
             session['username'] = user.username
             collect_ip(user)
             return redirect(url_for('feed'))
-        else:
-            error = "Account not found. Please register first."
     return render_template('login.html', error=error)
 
 @app.route('/logout')
