@@ -6,6 +6,10 @@ import os
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'connectly-demo-secret-2024')
+
+# Jinja2 filter for JSON parsing in templates
+app.jinja_env.filters['from_json'] = json.loads
+
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # Use DATABASE_URL env var if set (Railway/Postgres), otherwise local SQLite.
@@ -59,6 +63,16 @@ class Post(db.Model):
     seed_avatar = db.Column(db.String(10))
     seed_likes  = db.Column(db.Integer, default=0)
 
+    # media extensions
+    post_type   = db.Column(db.String(20), default='text')   # text | image | poll | link
+    image_url   = db.Column(db.String(300))                  # for image posts
+    link_url    = db.Column(db.String(300))                  # for link posts
+    link_title  = db.Column(db.String(200))
+    link_domain = db.Column(db.String(100))
+    poll_question   = db.Column(db.String(200))              # for poll posts
+    poll_options    = db.Column(db.Text)                     # JSON list of option strings
+    poll_votes      = db.Column(db.Text, default='{}')       # JSON {option_index: count}
+
     comments   = db.relationship('Comment', backref='post', lazy='dynamic',
                                   cascade='all, delete-orphan')
     likes      = db.relationship('PostLike', backref='post', lazy='dynamic',
@@ -99,32 +113,154 @@ class Event(db.Model):
 # ---------------------------------------------------------------------------
 
 SEED_POSTS = [
-    {"topic": "Gaming",  "author": "xX_ProGamer_Xx",  "avatar": "🎮",
+    # ── text posts ────────────────────────────────────────────────────────────
+    {"type": "text", "topic": "Gaming",  "author": "xX_ProGamer_Xx",  "avatar": "🎮",
      "text": "Just hit Diamond rank in Valorant after 200 hours 🔥 grind never stops", "likes": 342},
-    {"topic": "Music",   "author": "BeatsByMaya",      "avatar": "🎵",
-     "text": "New Taylor Swift album dropped and I haven't slept in 48h, no regrets", "likes": 891},
-    {"topic": "Sport",   "author": "FootballFanatic",  "avatar": "⚽",
+    {"type": "text", "topic": "Music",   "author": "BeatsByMaya",      "avatar": "🎵",
+     "text": "New Taylor Swift album dropped and I haven't slept in 48h, no regrets 😭", "likes": 891},
+    {"type": "text", "topic": "Sport",   "author": "FootballFanatic",  "avatar": "⚽",
      "text": "Champions League final was INSANE tonight. Best game in years!!", "likes": 1203},
-    {"topic": "Tech",    "author": "CodeNerd42",        "avatar": "💻",
+    {"type": "text", "topic": "Tech",    "author": "CodeNerd42",        "avatar": "💻",
      "text": "Built my first app with Python today. Honestly it's easier than I thought 🐍", "likes": 445},
-    {"topic": "Fashion", "author": "StyleByJess",       "avatar": "👗",
+    {"type": "text", "topic": "Fashion", "author": "StyleByJess",       "avatar": "👗",
      "text": "Y2K fashion is officially back and I am HERE for it 💅 thrift store haul incoming", "likes": 674},
-    {"topic": "Gaming",  "author": "NightOwlGamer",    "avatar": "🎮",
-     "text": "Minecraft or Roblox? Hot take: Minecraft still wins in 2024", "likes": 512},
-    {"topic": "Food",    "author": "FoodieKing",        "avatar": "🍕",
+    {"type": "text", "topic": "Gaming",  "author": "NightOwlGamer",    "avatar": "🎮",
+     "text": "Minecraft or Roblox? Hot take: Minecraft still wins in 2025, change my mind", "likes": 512},
+    {"type": "text", "topic": "Food",    "author": "FoodieKing",        "avatar": "🍕",
      "text": "Made homemade ramen from scratch, took 6 hours but totally worth it 🍜", "likes": 788},
-    {"topic": "Travel",  "author": "WanderlustKid",    "avatar": "✈️",
+    {"type": "text", "topic": "Travel",  "author": "WanderlustKid",    "avatar": "✈️",
      "text": "Tokyo in spring is literally a dream. Cherry blossoms everywhere 🌸", "likes": 1567},
-    {"topic": "Sport",   "author": "GymRat_Alex",       "avatar": "💪",
-     "text": "Day 100 of working out every day. Body transformation pics in comments", "likes": 923},
-    {"topic": "Music",   "author": "VinylCollector",   "avatar": "🎵",
-     "text": "Found a original 1979 Pink Floyd record at a flea market for €2. Best day ever", "likes": 334},
-    {"topic": "Tech",    "author": "AIEnthusiast",      "avatar": "🤖",
+    {"type": "text", "topic": "Sport",   "author": "GymRat_Alex",       "avatar": "💪",
+     "text": "Day 100 of working out every day. Body transformation pics in comments 💪", "likes": 923},
+    {"type": "text", "topic": "Music",   "author": "VinylCollector",   "avatar": "🎵",
+     "text": "Found an original 1979 Pink Floyd record at a flea market for €2. Best day ever", "likes": 334},
+    {"type": "text", "topic": "Tech",    "author": "AIEnthusiast",      "avatar": "🤖",
      "text": "ChatGPT just helped me write my entire history essay lol, is this cheating?", "likes": 2341},
-    {"topic": "Fashion", "author": "StreetStylePro",   "avatar": "👟",
+    {"type": "text", "topic": "Fashion", "author": "StreetStylePro",   "avatar": "👟",
      "text": "Air Force 1s or New Balance 550? Can't decide which ones to cop 👀", "likes": 445},
-]
+    {"type": "text", "topic": "Food",    "author": "BakingQueen",       "avatar": "🧁",
+     "text": "Accidentally put salt instead of sugar in my cookies 🤡 they're in the bin", "likes": 2890},
+    {"type": "text", "topic": "Travel",  "author": "BackpackerBenny",  "avatar": "🎒",
+     "text": "Booked a one-way ticket to Lisbon. No plan, no hotel, just vibes 🫡", "likes": 3100},
+    {"type": "text", "topic": "Tech",    "author": "DevDave",           "avatar": "🧑",
+     "text": "My CSS finally worked on the first try. I will never experience this feeling again", "likes": 5700},
+    {"type": "text", "topic": "Sport",   "author": "RunnerGirl",        "avatar": "🏃",
+     "text": "Just ran my first marathon!! 42km in 4h12m — I literally cried at the finish line 😭🏅", "likes": 4200},
+    {"type": "text", "topic": "Gaming",  "author": "RetroGamerPaul",   "avatar": "🕹️",
+     "text": "Unpopular opinion: GTA San Andreas > GTA V. That story was peak, no debate", "likes": 987},
+    {"type": "text", "topic": "Music",   "author": "ChillBeats99",      "avatar": "🎧",
+     "text": "If you're studying right now, lofi hip hop is literally a cheat code 🧠📚", "likes": 1420},
+    {"type": "text", "topic": "Food",    "author": "VeganVictor",       "avatar": "🥗",
+     "text": "Made a vegan burger that actually tastes like meat. My non-vegan flatmate ate 3. 👀", "likes": 2100},
+    {"type": "text", "topic": "Fashion", "author": "ThriftQueen",       "avatar": "🛍️",
+     "text": "€8 for this vintage Levi's jacket at the thrift store. Retail is a scam fr 🙏", "likes": 3300},
+    {"type": "text", "topic": "Travel",  "author": "SoloTravelerSara",  "avatar": "🗺️",
+     "text": "Traveling solo as a woman is the best thing I've ever done. 10/10 recommend 🌍", "likes": 4800},
+    {"type": "text", "topic": "Gaming",  "author": "SpeedrunnerMike",  "avatar": "⚡",
+     "text": "New personal best: finished Celeste in 47 minutes. The grind was real 🍓", "likes": 760},
+    {"type": "text", "topic": "Tech",    "author": "PrivacyNerd",       "avatar": "🔒",
+     "text": "Reminder that every app on your phone is tracking your location, even when closed. Delete what you don't use.", "likes": 6100},
+    {"type": "text", "topic": "Music",   "author": "FestivalFreak",     "avatar": "🎪",
+     "text": "Glastonbury lineup dropped and I'm already crying at the ticket prices 😭 still buying them tho", "likes": 1850},
+    {"type": "text", "topic": "Sport",   "author": "BasketballBro",     "avatar": "🏀",
+     "text": "LeBron at 40 still dropping 30-point games. Humans aren't supposed to do that", "likes": 2900},
 
+    # ── image posts ───────────────────────────────────────────────────────────
+    {"type": "image", "topic": "Travel", "author": "WanderlustKid", "avatar": "✈️",
+     "text": "Santorini sunsets hit different 🌅",
+     "image_url": "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=600&q=80",
+     "likes": 2840},
+    {"type": "image", "topic": "Food", "author": "FoodieKing", "avatar": "🍕",
+     "text": "Sunday brunch energy 🥞☕",
+     "image_url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80",
+     "likes": 1340},
+    {"type": "image", "topic": "Sport", "author": "GymRat_Alex", "avatar": "💪",
+     "text": "Before vs. after — 6 months of consistent training. Trust the process 💯",
+     "image_url": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&q=80",
+     "likes": 5120},
+    {"type": "image", "topic": "Fashion", "author": "StyleByJess", "avatar": "👗",
+     "text": "OOTD: thrifted everything for under €15 💅 links in bio",
+     "image_url": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&q=80",
+     "likes": 1870},
+    {"type": "image", "topic": "Gaming", "author": "xX_ProGamer_Xx", "avatar": "🎮",
+     "text": "New setup just dropped 🖥️ finally upgraded from my 2015 potato PC",
+     "image_url": "https://images.unsplash.com/photo-1593640495253-23196b27a87f?w=600&q=80",
+     "likes": 2290},
+    {"type": "image", "topic": "Travel", "author": "BackpackerBenny", "avatar": "🎒",
+     "text": "Three weeks in Southeast Asia for under €900. Here's how 🧵",
+     "image_url": "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=600&q=80",
+     "likes": 4100},
+    {"type": "image", "topic": "Food", "author": "BakingQueen", "avatar": "🧁",
+     "text": "Redemption arc: today's batch came out PERFECT 🍪✨",
+     "image_url": "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=600&q=80",
+     "likes": 3560},
+    {"type": "image", "topic": "Music", "author": "VinylCollector", "avatar": "🎵",
+     "text": "The collection is growing 👀 any recs for what to add next?",
+     "image_url": "https://images.unsplash.com/photo-1603481546238-487240415921?w=600&q=80",
+     "likes": 1230},
+    {"type": "image", "topic": "Tech", "author": "DevDave", "avatar": "🧑",
+     "text": "My home office setup after 2 years of iteration. Still not satisfied honestly",
+     "image_url": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&q=80",
+     "likes": 2770},
+
+    # ── poll posts ────────────────────────────────────────────────────────────
+    {"type": "poll", "topic": "Gaming", "author": "NightOwlGamer", "avatar": "🎮",
+     "text": "The debate ends here. VOTE NOW 👇",
+     "poll_question": "Best gaming platform?",
+     "poll_options": ["PC Master Race 🖥️", "PlayStation 🎮", "Xbox 🟩", "Nintendo Switch 🕹️"],
+     "poll_votes": [4821, 3104, 1893, 2560],
+     "likes": 892},
+    {"type": "poll", "topic": "Food", "author": "FoodieKing", "avatar": "🍕",
+     "text": "I will not rest until this is settled 🍍",
+     "poll_question": "Pineapple on pizza?",
+     "poll_options": ["Absolutely not 🤢", "Yes, it's good 🍍", "Depends on the rest", "I don't care"],
+     "poll_votes": [6230, 2140, 890, 410],
+     "likes": 3400},
+    {"type": "poll", "topic": "Music", "author": "BeatsByMaya", "avatar": "🎵",
+     "text": "Tell me who you are based on your answer 👇",
+     "poll_question": "How do you listen to music?",
+     "poll_options": ["Spotify 🟢", "Apple Music 🍎", "YouTube", "Vinyl / CDs 📀"],
+     "poll_votes": [8900, 3200, 2100, 450],
+     "likes": 1670},
+    {"type": "poll", "topic": "Tech", "author": "AIEnthusiast", "avatar": "🤖",
+     "text": "No wrong answers (there are wrong answers)",
+     "poll_question": "Best programming language for beginners?",
+     "poll_options": ["Python 🐍", "JavaScript", "Java ☕", "C++ 💀"],
+     "poll_votes": [5400, 3100, 980, 230],
+     "likes": 2100},
+    {"type": "poll", "topic": "Sport", "author": "FootballFanatic", "avatar": "⚽",
+     "text": "Drop your answer, no cowards 👇",
+     "poll_question": "GOAT of football?",
+     "poll_options": ["Messi 🐐", "Ronaldo", "Ronaldinho", "Someone else"],
+     "poll_votes": [7800, 5600, 1200, 900],
+     "likes": 4500},
+
+    # ── link posts ────────────────────────────────────────────────────────────
+    {"type": "link", "topic": "Tech", "author": "PrivacyNerd", "avatar": "🔒",
+     "text": "Everyone should read this. Bookmarked it immediately 👇",
+     "link_url": "https://www.eff.org/issues/privacy",
+     "link_title": "Privacy | Electronic Frontier Foundation",
+     "link_domain": "eff.org",
+     "likes": 1890},
+    {"type": "link", "topic": "Tech", "author": "CodeNerd42", "avatar": "💻",
+     "text": "The best free resource to learn web development. Zero excuses now 🚀",
+     "link_url": "https://www.theodinproject.com",
+     "link_title": "The Odin Project — Your Career in Web Development Starts Here",
+     "link_domain": "theodinproject.com",
+     "likes": 3200},
+    {"type": "link", "topic": "Music", "author": "ChillBeats99", "avatar": "🎧",
+     "text": "My current favourite playlist for deep work sessions 🎵",
+     "link_url": "https://open.spotify.com",
+     "link_title": "lofi hip hop radio - beats to relax/study to · Spotify",
+     "link_domain": "open.spotify.com",
+     "likes": 2100},
+    {"type": "link", "topic": "Travel", "author": "SoloTravelerSara", "avatar": "🗺️",
+     "text": "How I planned a 3-week Europe trip for under €1000 — the full breakdown",
+     "link_url": "https://www.lonelyplanet.com",
+     "link_title": "Budget Europe Travel Guide 2025 · Lonely Planet",
+     "link_domain": "lonelyplanet.com",
+     "likes": 2770},
+]
 TOPIC_EMOJIS = {
     "Gaming": "🎮", "Music": "🎵", "Sport": "⚽", "Tech": "💻",
     "Fashion": "👗", "Food": "🍕", "Travel": "✈️", "Other": "💬",
@@ -135,9 +271,25 @@ AVATAR_OPTIONS = ["😊","😎","🤩","🥳","😄","🧑","👦","👧","🦸"
 def seed_posts():
     if Post.query.count() == 0:
         for s in SEED_POSTS:
-            p = Post(author_id=None, text=s['text'], topic=s['topic'],
-                     seed_author=s['author'], seed_avatar=s['avatar'],
-                     seed_likes=s['likes'])
+            ptype = s.get('type', 'text')
+            p = Post(
+                author_id=None,
+                text=s['text'],
+                topic=s['topic'],
+                seed_author=s['author'],
+                seed_avatar=s['avatar'],
+                seed_likes=s.get('likes', 0),
+                post_type=ptype,
+                image_url=s.get('image_url'),
+                link_url=s.get('link_url'),
+                link_title=s.get('link_title'),
+                link_domain=s.get('link_domain'),
+                poll_question=s.get('poll_question'),
+                poll_options=json.dumps(s['poll_options']) if 'poll_options' in s else None,
+                poll_votes=json.dumps(
+                    {str(i): v for i, v in enumerate(s['poll_votes'])}
+                ) if 'poll_votes' in s else '{}',
+            )
             db.session.add(p)
         db.session.commit()
 
@@ -216,6 +368,70 @@ def logout():
 # Routes — Feed
 # ---------------------------------------------------------------------------
 
+def compute_interest_scores(user_id):
+    """Return a dict {topic: score} built from the user's tracked events."""
+    events = Event.query.filter_by(user_id=user_id).all()
+    scores = {}
+    for e in events:
+        topic = None
+        weight = 0
+        if e.event_type == 'like':
+            post = Post.query.get(int(e.target)) if e.target.isdigit() else None
+            if post:
+                topic, weight = post.topic or 'Other', 3
+        elif e.event_type == 'comment':
+            post = Post.query.get(int(e.target)) if e.target.isdigit() else None
+            if post:
+                topic, weight = post.topic or 'Other', 4
+        elif e.event_type == 'poll_vote':
+            post = Post.query.get(int(e.target)) if e.target.isdigit() else None
+            if post:
+                topic, weight = post.topic or 'Other', 2
+        elif e.event_type == 'view':
+            post = Post.query.get(int(e.target)) if e.target.isdigit() else None
+            if post:
+                secs = float(e.value) if e.value else 0
+                topic = post.topic or 'Other'
+                weight = 2 if secs >= 5 else 1
+        elif e.event_type == 'topic_click':
+            topic  = e.target
+            weight = 2
+        elif e.event_type == 'new_post':
+            topic, weight = e.value or 'Other', 3
+        if topic:
+            scores[topic] = scores.get(topic, 0) + weight
+    return scores
+
+def rank_posts_for_user(posts, interest_scores):
+    """
+    Score each post, then sort descending.
+    New posts from followed users get a recency bonus.
+    A small random jitter keeps the feed from feeling completely static.
+    Returns (ranked_posts, top_topics) where top_topics is the top-3 list.
+    """
+    import random, math
+    total = sum(interest_scores.values()) or 1
+    # normalise scores to 0-1
+    norm = {t: s / total for t, s in interest_scores.items()}
+
+    def post_score(p):
+        base       = norm.get(p.topic or 'Other', 0) * 100
+        # slight recency boost (decay over ~7 days)
+        age_hours  = (datetime.utcnow() - p.created_at).total_seconds() / 3600
+        recency    = math.exp(-age_hours / 168)   # half-life ~7 days
+        jitter     = random.uniform(0, 8)
+        return base * 0.7 + recency * 15 + jitter
+
+    has_signal = bool(interest_scores)
+    if has_signal:
+        ranked = sorted(posts, key=post_score, reverse=True)
+    else:
+        ranked = posts   # chronological for new users
+
+    top_topics = sorted(interest_scores.items(), key=lambda x: x[1], reverse=True)[:3]
+    return ranked, top_topics
+
+
 @app.route('/feed')
 def feed():
     if 'user_id' not in session:
@@ -223,8 +439,12 @@ def feed():
 
     me = current_user()
 
-    # all posts newest first
-    posts = Post.query.order_by(Post.created_at.desc()).all()
+    # fetch all posts (personalisation happens in Python, not SQL)
+    all_posts = Post.query.order_by(Post.created_at.desc()).all()
+
+    interest_scores            = compute_interest_scores(me.id)
+    posts, top_topics          = rank_posts_for_user(all_posts, interest_scores)
+    is_personalised            = bool(interest_scores)
 
     # which post ids has the current user liked?
     liked_ids = {pl.post_id for pl in PostLike.query.filter_by(user_id=me.id).all()}
@@ -245,7 +465,9 @@ def feed():
                            suggested=suggested,
                            notif_count=notif_count,
                            topic_emojis=TOPIC_EMOJIS,
-                           topics=list(TOPIC_EMOJIS.keys()))
+                           topics=list(TOPIC_EMOJIS.keys()),
+                           is_personalised=is_personalised,
+                           top_topics=top_topics)
 
 # ---------------------------------------------------------------------------
 # Routes — Posts
@@ -300,7 +522,31 @@ def like_post(post_id):
         total += post.seed_likes
     return jsonify({'ok': True, 'liked': liked, 'count': total})
 
-@app.route('/post/<int:post_id>/comment', methods=['POST'])
+@app.route('/post/<int:post_id>/vote', methods=['POST'])
+def vote_poll(post_id):
+    if 'user_id' not in session:
+        return jsonify({'ok': False}), 401
+    post = Post.query.get_or_404(post_id)
+    if post.post_type != 'poll':
+        return jsonify({'ok': False, 'error': 'not a poll'})
+    option_index = request.get_json(silent=True, force=True).get('option')
+    if option_index is None:
+        return jsonify({'ok': False})
+    votes = json.loads(post.poll_votes or '{}')
+    key = str(option_index)
+    votes[key] = votes.get(key, 0) + 1
+    post.poll_votes = json.dumps(votes)
+    db.session.commit()
+    # track
+    ev = Event(user_id=session['user_id'], event_type='poll_vote',
+               target=str(post_id), value=str(option_index))
+    db.session.add(ev)
+    db.session.commit()
+    total = sum(votes.values())
+    percentages = {k: round(v / total * 100) if total else 0 for k, v in votes.items()}
+    return jsonify({'ok': True, 'votes': votes, 'percentages': percentages, 'total': total})
+
+
 def add_comment(post_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))

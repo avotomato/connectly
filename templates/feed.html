@@ -39,6 +39,29 @@
   <!-- Main Feed -->
   <main class="feed">
 
+    <!-- Feed header -->
+    {% if is_personalised %}
+    <div class="feed-header personalised">
+      <span class="feed-header-icon">✨</span>
+      <div class="feed-header-text">
+        <strong>Personalisiert für dich</strong>
+        <span>Basierend auf deinen Interessen:
+          {% for topic, score in top_topics %}
+            <span class="interest-chip">{{ topic_emojis.get(topic, '💬') }} {{ topic }}</span>
+          {% endfor %}
+        </span>
+      </div>
+    </div>
+    {% else %}
+    <div class="feed-header default">
+      <span class="feed-header-icon">🌐</span>
+      <div class="feed-header-text">
+        <strong>Neueste Beiträge</strong>
+        <span>Interagiere mit Posts — dein Feed passt sich automatisch an.</span>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Compose box -->
     <div class="compose-card">
       <div class="compose-header">
@@ -89,6 +112,50 @@
       </div>
 
       <p class="post-text">{{ post.text }}</p>
+
+      {# ── image post ──────────────────────────────── #}
+      {% if post.post_type == 'image' and post.image_url %}
+      <div class="post-image-wrap">
+        <img src="{{ post.image_url }}" alt="Post image" class="post-image" loading="lazy" />
+      </div>
+      {% endif %}
+
+      {# ── link preview post ───────────────────────── #}
+      {% if post.post_type == 'link' and post.link_url %}
+      <a href="{{ post.link_url }}" target="_blank" rel="noopener noreferrer" class="link-preview">
+        <div class="link-preview-body">
+          <span class="link-domain">🔗 {{ post.link_domain }}</span>
+          <span class="link-title">{{ post.link_title }}</span>
+        </div>
+        <span class="link-arrow">↗</span>
+      </a>
+      {% endif %}
+
+      {# ── poll post ───────────────────────────────── #}
+      {% if post.post_type == 'poll' and post.poll_options %}
+      {% set options = post.poll_options | from_json %}
+      {% set votes   = post.poll_votes   | from_json %}
+      {% set total_votes = votes.values() | sum %}
+      <div class="poll-block" id="poll-{{ post.id }}">
+        <p class="poll-question">{{ post.poll_question }}</p>
+        <div class="poll-options">
+          {% for opt in options %}
+          {% set idx = loop.index0 | string %}
+          {% set v   = votes.get(idx, 0) %}
+          {% set pct = ((v / total_votes * 100) | round | int) if total_votes > 0 else 0 %}
+          <button class="poll-option" data-post="{{ post.id }}" data-idx="{{ loop.index0 }}"
+                  onclick="votePoll({{ post.id }}, {{ loop.index0 }}, this)">
+            <span class="poll-option-text">{{ opt }}</span>
+            <span class="poll-bar-wrap">
+              <span class="poll-bar-fill" style="width: {{ pct }}%"></span>
+            </span>
+            <span class="poll-pct">{{ pct }}%</span>
+          </button>
+          {% endfor %}
+        </div>
+        <p class="poll-total">{{ total_votes | int }} votes</p>
+      </div>
+      {% endif %}
 
       <div class="post-actions">
         <button class="btn-like {% if is_liked %}liked{% endif %}"
@@ -190,6 +257,30 @@ function toggleFollow(uid, btn) {
       btn.textContent = d.following ? 'Unfollow' : 'Follow';
       btn.classList.toggle('following', d.following);
     });
+}
+
+// ── Poll vote ─────────────────────────────────────
+function votePoll(postId, optionIdx, btn) {
+  fetch(`/post/${postId}/vote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ option: optionIdx })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (!d.ok) return;
+    const block = document.getElementById(`poll-${postId}`);
+    const btns  = block.querySelectorAll('.poll-option');
+    btns.forEach((b, i) => {
+      const pct = d.percentages[String(i)] ?? 0;
+      b.querySelector('.poll-bar-fill').style.width = pct + '%';
+      b.querySelector('.poll-pct').textContent = pct + '%';
+      b.disabled = true;
+      b.classList.add('voted');
+      if (i === optionIdx) b.classList.add('poll-winner');
+    });
+    block.querySelector('.poll-total').textContent = d.total + ' votes';
+  });
 }
 
 // ── Share (copy link) ─────────────────────────────────
